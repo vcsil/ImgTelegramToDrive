@@ -1,0 +1,8 @@
+python-dotenv>=1.1.0
+tqdm>=4.67.1
+pyrogram>=2.0.106
+pytesseract>=0.3.13
+opencv-python-headless>=4.11.0
+nest-asyncio>=1.6.0
+watchdog>=6.0.0
+pydrive2>=1.21.3

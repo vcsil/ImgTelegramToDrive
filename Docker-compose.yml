@@ -1,0 +1,20 @@
+services:
+  telegram-bot:
+    build: .
+    command: python main.py
+    restart: on-failure
+    volumes:
+      - ./.env:/app/.env
+      - ./midias_baixadas:/app/midias_baixadas
+      - ./plataformas:/app/plataformas
+      - ./logs:/app/logs
+
+  drive-sync:
+    build: .
+    command: python saveDrive.py
+    restart: on-failure
+    volumes:
+      - ./.env:/app/.env
+      - ./credentials.txt:/app/credentials.txt
+      - ./plataformas:/app/plataformas
+      - ./logs:/app/logs

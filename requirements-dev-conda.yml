@@ -1,0 +1,14 @@
+name: saveDrive
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - spyder
+  - conda-forge::python-dotenv
+  - tqdm=4.67.1
+  - conda-forge::pyrogram
+  - conda-forge::pytesseract
+  - conda-forge::opencv-python-headless
+  - conda-forge::watchdog
+  - conda-forge::pydrive2
+prefix: /home/vcsil/anaconda3/envs/saveDrive

@@ -122,3 +122,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#project
+logs/
+client_secrets.json
+credentials.txt
+minha_conta.*
+uploaded_files_dirs.json
