@@ -124,6 +124,8 @@ dmypy.json
 .pyre/
 
 #project
+midias_baixadas/
+plataformas/
 logs/
 client_secrets.json
 credentials.txt
