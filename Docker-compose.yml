@@ -8,6 +8,7 @@ services:
       - ./midias_baixadas:/app/midias_baixadas
       - ./plataformas:/app/plataformas
       - ./logs:/app/logs
+      - ./minha_conta.session:/app/minha_conta.session
 
   drive-sync:
     build: .
@@ -18,3 +19,4 @@ services:
       - ./credentials.txt:/app/credentials.txt
       - ./plataformas:/app/plataformas
       - ./logs:/app/logs
+      - ./credentials.txt:/app/credentials.txt
