@@ -9,6 +9,7 @@ services:
       - ./plataformas:/app/plataformas
       - ./logs:/app/logs
       - ./minha_conta.session:/app/minha_conta.session
+      - ./sessions:/app/sessions
 
   drive-sync:
     build: .

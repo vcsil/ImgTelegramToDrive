@@ -192,7 +192,7 @@ create_directory(download_folder)
 
 # Inicializa o cliente
 app = Client("minha_conta", api_id=api_id, api_hash=api_hash,
-             phone_number=phone_number)
+             phone_number=phone_number, workdir=os.path.join(".", "sessions"))
 
 # Pegar id dos grupoas
 group_id = int(env["TELEGRAM_GROUP_ID"])  # app.run(list_groups())  #

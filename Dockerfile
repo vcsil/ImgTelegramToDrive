@@ -26,5 +26,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN mkdir -p /app/midias_baixadas /app/plataformas /app/logs \
     && chmod -R a+rwx /app/midias_baixadas /app/plataformas /app/logs
 
+RUN mkdir -p /app/sessions && \
+    chmod -R 777 /app/sessions
+
 # Copia os scripts
 COPY . .
