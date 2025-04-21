@@ -25,9 +25,9 @@ api_id = env["TELEGRAM_API_ID"]
 api_hash = env["TELEGRAM_API_HASH"]
 phone_number = env["TELEGRAM_PHONE_NUMBER"]
 group_username = env["TELEGRAM_GROUP_USERNAME"]
-download_folder = env["FIRST_DONWLOAD_FOLDER"]
+download_folder = os.path.join("..", env["FIRST_DONWLOAD_FOLDER"])
 
-log_file = os.path.join("logs", "log.txt")  # Nome do arquivo de log
+log_file = os.path.join("..", "logs", "log.txt")  # Nome do arquivo de log
 max_log_size = 2 * 1024 * 1024  # Tamanho máximo do arquivo de log (2MB)
 backup_count = 3  # Número de arquivos de log de backup
 
@@ -190,9 +190,11 @@ async def list_groups():
 # Cria a pasta de download, se não existir
 create_directory(download_folder)
 
+create_directory(os.path.join("..", "sessions"))
+
 # Inicializa o cliente
 app = Client("minha_conta", api_id=api_id, api_hash=api_hash,
-             phone_number=phone_number, workdir=os.path.join(".", "sessions"))
+             phone_number=phone_number, workdir=os.path.join("..", "sessions"))
 
 # Pegar id dos grupoas
 group_id = int(env["TELEGRAM_GROUP_ID"])  # app.run(list_groups())  #
@@ -216,7 +218,13 @@ async def handle_new_message(client, message):
 async def main():
     await app.start()
     logger.info("Cliente iniciado. Aguardando novas mensagens...")
-    await idle()  # Mantém o cliente em execução
+
+    try:
+        await idle()  # Mantém o cliente em execução
+    except KeyboardInterrupt:
+        logger.info("Encerrando o cliente...")
+    finally:
+        await app.stop()
 
 
 # Executa o script

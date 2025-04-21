@@ -281,10 +281,10 @@ def main():
 
 
 # Diretório base onde as mídias estão armazenadas
-base_media_dir = env["FIRST_DONWLOAD_FOLDER"]
+base_media_dir = os.path.join("..", env["FIRST_DONWLOAD_FOLDER"])
 
 # Diretório base para onde as mídias serão movidas
-base_destination_dir = env["DESTINATION_DIR_IMAGE"]
+base_destination_dir = os.path.join("..", env["DESTINATION_DIR_IMAGE"])
 
 # Executa o script
 if __name__ == "__main__":
