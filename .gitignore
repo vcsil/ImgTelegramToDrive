@@ -127,7 +127,6 @@ dmypy.json
 midias_baixadas/
 plataformas/
 logs/
-client_secrets.json
-credentials.txt
-minha_conta.*
-uploaded_files_dirs.json
+credentials-google/
+sessions/
+uploads.json
