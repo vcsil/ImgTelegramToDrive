@@ -130,3 +130,4 @@ logs/
 credentials-google/
 sessions/
 uploads.json
+retry_queue.json
