@@ -208,7 +208,7 @@ def organize_image(file_name):
                                        current_month_year, matches[0])
     else:
         # Se não houver matches, usar a pasta "others"
-        image_date = os.path.normpath(file_name).split(os.sep)[1]
+        image_date = os.path.normpath(file_name).split(os.sep)[2]
         destination_dir = os.path.join(base_destination_dir,
                                        current_month_year,
                                        "others", image_date)
