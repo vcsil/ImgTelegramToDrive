@@ -6,7 +6,6 @@ Created on Mon Apr 21 14:19:51 2025.
 @author: vcsil
 """
 
-from driveSync.retry_policies import api_retry
 from pydrive2.drive import GoogleDrive
 from typing import Optional, List
 import datetime
@@ -19,7 +18,6 @@ class DriveClient:
         """Inicia cliente do drive."""
         self.drive = GoogleDrive(gauth)
 
-    @api_retry()
     def list_folder(self, folder_id: str = "root",
                     folder_name: str = "root") -> List[dict]:
         """
@@ -72,7 +70,6 @@ class DriveClient:
 
             print(f"{file['id']} | {file['title']} | {file_type}")
 
-    @api_retry()
     def upload_file(self, local_path: str,
                     parent_id: Optional[str] = None) -> dict:
         """
@@ -106,7 +103,6 @@ class DriveClient:
 
         return gfile.metadata
 
-    @api_retry()
     def create_folder(self, name: str,
                       parent_id: Optional[str] = None) -> dict:
         """
