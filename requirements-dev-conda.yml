@@ -11,4 +11,6 @@ dependencies:
   - conda-forge::opencv-python-headless
   - conda-forge::watchdog
   - conda-forge::pydrive2
+  - conda-forge::tenacity
+  - conda-forge::ffmpeg
 prefix: /home/vcsil/anaconda3/envs/saveDrive
