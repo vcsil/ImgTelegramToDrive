@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Garantir que o arquivo de cache existe e tem permissões adequadas
+touch /app/uploads.json
+chmod 666 /app/uploads.json
+
 # Verificar se os diretórios necessários existem e têm permissões adequadas
 mkdir -p /app/credentials
 mkdir -p /app/logs

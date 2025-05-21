@@ -7,6 +7,7 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./midias_baixadas:/app/midias_baixadas
+      - ./uploads.json:/app/uploads.json
       - ./plataformas:/app/plataformas
       - ./credentials:/app/credentials
       - ./logs:/app/logs
