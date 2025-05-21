@@ -127,7 +127,6 @@ dmypy.json
 midias_baixadas/
 plataformas/
 logs/
-credentials-google/
-sessions/
+credentials/
 uploads.json
 retry_queue.json
