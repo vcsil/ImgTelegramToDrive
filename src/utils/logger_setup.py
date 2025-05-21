@@ -18,14 +18,14 @@ class SetupLogger():
     ----------
     log_file : str, optional
         Endereço para o arquivo de log. The default is "log.txt".
+    getLogger: str, optional
+        Identificado do logger.
     level : int, optional
         Level de ativaçao de registro de log. The default is logging.INFO.
     max_log_size : int, optional
         Tamanho em MB do arquivo log. The default is 5.
     backup_count : int, optional
         Quantidade de arquivos a serem criados. The default is 3.
-    fmt : str, optional
-        The default is "%(asctime)s - %(levelname)s - %(message)s".
 
     Returns
     -------
@@ -36,7 +36,7 @@ class SetupLogger():
     def __init__(self, log_file: str = "log.txt", getLogger: str = "syncDrive",
                  level: int = logging.INFO, max_log_size: int = 5,
                  backup_count: int = 3):
-        fmt = "%(asctime)s - %(levelname)s - %(message)s"
+        fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         logger = logging.getLogger(getLogger)
         logger.setLevel(level)
         handler = RotatingFileHandler(log_file,
