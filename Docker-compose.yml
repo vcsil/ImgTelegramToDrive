@@ -1,23 +1,16 @@
 services:
-  telegram-bot:
-    build: .
-    command: python main.py
+  telegram-drive-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: on-failure
     volumes:
       - ./.env:/app/.env
       - ./midias_baixadas:/app/midias_baixadas
       - ./plataformas:/app/plataformas
+      - ./credentials:/app/credentials
       - ./logs:/app/logs
-      - ./minha_conta.session:/app/minha_conta.session
-      - ./sessions:/app/sessions
-
-  drive-sync:
-    build: .
-    command: python saveDrive.py
-    restart: on-failure
-    volumes:
-      - ./.env:/app/.env
-      - ./credentials.txt:/app/credentials.txt
-      - ./plataformas:/app/plataformas
-      - ./logs:/app/logs
-      - ./credentials.txt:/app/credentials.txt
+    environment:
+      - TZ=America/Sao_Paulo
+    # Definir usuário com permissões apropriadas (opcional se já definido no Dockerfile)
+    user: "${UID:-1000}:${GID:-1000}"
