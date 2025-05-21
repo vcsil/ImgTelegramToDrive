@@ -5,68 +5,19 @@ Created on Mon Apr 21 15:27:46 2025.
 
 @author: vcsil
 """
-
-from driveSync.uploaded_filesdirs import UploadedFilesDirs
-from driveSync.directory_watcher import DirectoryWatcher
-from driveSync.cleanup_worker import CleanupWorker
-from concurrent.futures import ThreadPoolExecutor
-from driveSync.logger_setup import SetupLogger
-from driveSync.drive_client import DriveClient
-from driveSync.retry_queue import RetryQueue
-from driveSync.drive_auth import DriveAuth
 from dotenv import dotenv_values
 from pathlib import Path
-import threading
-import time
 import os
 
-
-def BUILD_ABSPATH(*args):
-    """Constroi caminhos absolutos da raiz."""
-    path = Path(__file__).parent.joinpath(*args).resolve()
-    return path
-
-
-executor = ThreadPoolExecutor(max_workers=4)
-retry_queue = RetryQueue(BUILD_ABSPATH("../retry_queue.json"))
-
-
-def retry_worker():
-    """Tenta outra vez fazer upload de arquivos."""
-    while True:
-        item = retry_queue.pop()
-        if not item:
-            time.sleep(60)        # nada a fazer; espera 1 min
-            continue
-        try:
-            # tenta novamente – reutiliza mesma função
-            sync_upload(item["local_path"], logger, drive_client,
-                        obj_uploads, item["parent_id"], retry_queue)
-        except Exception as err:
-            # se ainda falhar, re-enfileira com contador +1
-            if item["retries"] + 1 < retry_queue.max_retries:
-                retry_queue.add(item["local_path"],
-                                item["parent_id"],
-                                retries=item["retries"] + 1)
-            else:
-                logger.error(f"Desistindo após {retry_queue.max_retries} "
-                             f"tentativas: {item['local_path']}")
-                logger.error(err)
-        time.sleep(5)              # evita *busy loop*
-
-
-threading.Thread(target=retry_worker, daemon=True).start()
-
-
-def handle_new_file(path: str, log, dclient,
-                    dict_uploads: dict, folder_id: str) -> None:
-    """Observador de novos arquivos."""
-    executor.submit(sync_upload, path, log, dclient, dict_uploads,
-                    folder_id, retry_queue)
+from utils.utils import BUILD_ABSPATH, file_root_recursive
+from driveSync.uploaded_filesdirs import UploadedFilesDirs
+from driveSync.drive_client import DriveClient
+from driveSync.drive_auth import DriveAuth
+from utils.logger_setup import SetupLogger
 
 
 def sync_upload(path: str, log, dclient,
-                dict_uploads: dict, folder_id: str, retry_q) -> None:
+                dict_uploads: dict, folder_id: str) -> None:
     """
     Faz operações necessárias para sincronizar pastas e arquivos.
 
@@ -123,7 +74,6 @@ def sync_upload(path: str, log, dclient,
 
     except Exception as exc:
         log.error(f"Falha mesmo após retries: {exc}")
-        retry_q.add(path, current_folder_id)
 
 
 def get_or_create_folder(folder_name, parent_folder_id, log, dclient,
@@ -161,35 +111,34 @@ def get_or_create_folder(folder_name, parent_folder_id, log, dclient,
 
 
 if __name__ == "__main__":
-    env = dotenv_values(BUILD_ABSPATH("..", ".env"))
+    from tqdm import tqdm
+
+    env = dotenv_values(BUILD_ABSPATH(__file__, "..", ".env"))
 
     # Inicia logger
-    logger = SetupLogger(BUILD_ABSPATH("../logs/log-drive.txt"), "syncDrive")
+    logger = SetupLogger(BUILD_ABSPATH(__file__,
+                                       "../logs/log-drive.txt"), "syncDrive")
 
     # Inicia conexao e autenticacao com o drive
-    client_secret_path = BUILD_ABSPATH(
-        "../credentials-google/client_secret.json")
-    auth = DriveAuth(client_secret_path).authenticate()
+    client_secrets_path = BUILD_ABSPATH(
+        __file__, "../credentials/service_account.json")
+    auth = DriveAuth(client_secrets_path).authenticate()
 
     # Inicia cliente do drive
     drive_client = DriveClient(auth)
 
     # Lê arquivo que armazena informações do que já foi sincronizado
-    obj_uploads = UploadedFilesDirs(BUILD_ABSPATH("../uploads.json"))
+    obj_uploads = UploadedFilesDirs(BUILD_ABSPATH(__file__, "../uploads.json"))
 
-    local_dir = BUILD_ABSPATH("..", env["DESTINATION_DIR_IMAGE"])
-    watcher = DirectoryWatcher(path=local_dir, on_created=handle_new_file,
-                               logger=logger, drive_client=drive_client,
-                               obj_uploads=obj_uploads,
-                               TARGET_FOLDER_ID=env["GDRIVE_BASE_FOLDER_ID"])
+    local_dir = BUILD_ABSPATH(__file__, "..", env["DESTINATION_DIR_IMAGE"])
 
-    # Exclui arquivos que não foram atualizados a mais de 15 dias
-    cleanup = CleanupWorker(drive_client, obj_uploads, logger,
-                            limite_dias=15, intervalo_horas=24)
-    cleanup.start()
+    files = file_root_recursive(local_dir)
+
+    for file in tqdm(files):
+        sync_upload(file, logger, drive_client, obj_uploads,
+                    env["GDRIVE_BASE_FOLDER_ID"])
 
     try:
         logger.info("Iniciando observação de diretório.")
-        watcher.start()
     finally:
         obj_uploads.update_dict()

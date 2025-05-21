@@ -1,232 +1,258 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Sat Feb  8 13:58:16 2025.
 
-@author: vinic
-"""
-from logging.handlers import RotatingFileHandler
-from pyrogram import Client, filters, idle
-from organize_groups import organize_image
-from pyrogram.errors import FloodWait
-from dotenv import dotenv_values
-import nest_asyncio
-import functools
-import logging
-import asyncio
-import os
+Telegram Media Downloader
 
-# Aplica o patch para permitir múltiplos loops
+Downloads media from a specified Telegram group and organizes it by date.
+@author: vcsil
+"""
+
+from pyrogram.errors import FloodWait
+from pyrogram import Client, filters
+from pyrogram.types import Message
+from dotenv import dotenv_values
+from typing import Optional
+from pathlib import Path
+import nest_asyncio
+import asyncio
+
+from utils.logger_setup import SetupLogger
+from organizeGroups import organize_midia
+
+# Apply patch to allow multiple event loops
 nest_asyncio.apply()
 
-env = dotenv_values()
 
-# Configurações
-api_id = env["TELEGRAM_API_ID"]
-api_hash = env["TELEGRAM_API_HASH"]
-phone_number = env["TELEGRAM_PHONE_NUMBER"]
-group_username = env["TELEGRAM_GROUP_USERNAME"]
-download_folder = os.path.join("..", env["FIRST_DONWLOAD_FOLDER"])
+class TelegramMediaDownloader:
+    """A class to download media from Telegram groups."""
 
-log_file = os.path.join("..", "logs", "log.txt")  # Nome do arquivo de log
-max_log_size = 2 * 1024 * 1024  # Tamanho máximo do arquivo de log (2MB)
-backup_count = 3  # Número de arquivos de log de backup
+    def __init__(self):
+        """Initialize the downloader with configuration from env var."""
+        # Load environment variables
+        env = dotenv_values()
 
-# Configuração do logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        RotatingFileHandler(
-            log_file, maxBytes=max_log_size, backupCount=backup_count
-        ),
-        logging.StreamHandler()  # Para exibir logs no console também
-    ]
-)
-logger = logging.getLogger(__name__)
+        # Configure paths
+        self.base_dir = Path(__file__).parent.parent
+        self.download_folder = self.base_dir / env["FIRST_DONWLOAD_FOLDER"]
+        self.credentials_dir = self.base_dir / "credentials"
+        self.logs_dir = self.base_dir / "logs"
 
+        # Ensure directories exist
+        self.download_folder.mkdir(parents=True, exist_ok=True)
+        self.credentials_dir.mkdir(parents=True, exist_ok=True)
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
 
-# Decorador para capturar e aguardar FloodWait
-def handle_flood_wait(func):
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        while True:
-            try:
-                return await func(*args, **kwargs)
-            except FloodWait as e:
-                except_str = f"⚠️ FLOOD_WAIT detectado! Aguardando {e.value} "
-                except_str += "segundos antes de tentar novamente..."
-                print(except_str)
-                logger.warning(except_str)
-                # Espera o tempo necessário antes de tentar novamente
-                await asyncio.sleep(e.value)
-    return wrapper
+        # Configure logging
+        self.log = SetupLogger(self.logs_dir / "log-main.txt", "main")
 
+        # Telegram API credentials
+        self.api_id = env["TELEGRAM_API_ID"]
+        self.api_hash = env["TELEGRAM_API_HASH"]
+        self.phone_number = env["TELEGRAM_PHONE_NUMBER"]
+        self.group_id = int(env["TELEGRAM_GROUP_ID"], 0)
 
-# Função para criar diretórios se não existirem
-def create_directory(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
+        # Initialize Pyrogram client
+        self.app = Client(
+            "minha_conta",
+            api_id=self.api_id,
+            api_hash=self.api_hash,
+            phone_number=self.phone_number,
+            workdir=str(self.credentials_dir)
+        )
 
+        # Set up message handler
+        @self.app.on_message(filters.chat(self.group_id) &
+                             (filters.photo | filters.video))
+        async def handle_new_message(client, message):
+            """Handle new messages with media."""
+            self.log.info(f"Nova mensagem recebida: {message.id}")
+            await self.process_media(message)
 
-# Função para processar mídias
-async def process_media(message):
-    try:
-        if message.media:
-            # Obtém a data da mensagem
+    async def process_media(self, message: Message) -> None:
+        """
+        Process and download media from a message.
+
+        Args
+        ----
+            message: The Telegram message containing media
+        """
+        try:
+            if not message.media:
+                return
+
+            # Get message date and format as YYYY-MM-DD
             message_date = message.date
-            # Formata a data como "YYYY-MM-DD"
             date_folder = message_date.strftime("%Y-%m-%d")
-            # Cria o diretório correspondente à data
-            media_folder = os.path.join(download_folder, date_folder)
-            create_directory(media_folder)
 
-            # Define a extensão do arquivo com base no tipo de mídia
-            if message.photo:
-                file_extension = ".jpg"
-            elif message.video:
-                file_extension = ".mp4"
-            elif message.document:
-                file_extension = os.path.splitext(
-                    message.document.file_name)[1]
-            else:
-                # Extensão padrão para outros tipos de mídia
-                file_extension = ".dat"
+            # Create directory for this date
+            media_folder = self.download_folder / date_folder
+            media_folder.mkdir(exist_ok=True)
 
-            # Define o nome do arquivo
-            file_name = os.path.join(media_folder,
-                                     f"{message.id}{file_extension}")
+            # Determine file extension based on media type
+            file_extension = self._get_file_extension(message)
 
-            # Baixa a mídia
-            logger.info(f"Baixando mídia da mensagem {message.id}...")
-            await app.download_media(message, file_name=file_name)
-            logger.info(
+            # Define full file path
+            file_path = media_folder / f"{message.id}{file_extension}"
+
+            # Download the media
+            self.log.info(f"Baixando mídia da mensagem {message.id}...")
+            await self.app.download_media(message, file_name=str(file_path))
+            self.log.info(
                 f"Mídia {message.id} baixada com sucesso em {media_folder}!")
 
-            # Se for uma imagem, processa e organiza
-            if message.photo:
-                organize_image(file_name)
+            # Process images and videos with organize_midia
+            if message.photo or message.video:
+                organize_midia(str(file_path), date_folder, self.log)
 
-    except FloodWait as e:
-        # Captura o erro FloodWait e espera o tempo necessário
-        wait_time = e.x
-        logger.warning(
-            f"FloodWait detectado. Esperando {wait_time}s antes de continuar.")
-        await asyncio.sleep(wait_time)
-        # Tenta processar a mídia novamente após a espera
-        await process_media(message)
+        except Exception as e:
+            self.log.error(
+                f"Erro ao processar a mensagem {message.id}: {e}")
 
-    except Exception as e:
-        logger.error(f"Erro ao processar a mensagem {message.id}: {e}")
+    def _get_file_extension(self, message: Message) -> str:
+        """
+        Determine the appropriate file extension based on media type.
+
+        Args
+        ----
+            message: The Telegram message containing media
+
+        Returns
+        -------
+            str: The file extension with leading dot
+        """
+        if message.photo:
+            return ".jpg"
+        elif message.video:
+            return ".mp4"
+        else:
+            return ".dat"  # Default extension
+
+    async def download_historical_media(self, min_id: int,
+                                        max_id: Optional[int] = None) -> None:
+        """
+        Download media from historical messages in the specified group.
+
+        Args
+        ----
+            min_id: Minimum message ID to download
+            max_id: Maximum message ID to download (if None, no upper limit)
+        """
+        try:
+            async with self.app:
+                self.log.info("Conectado à conta do Telegram!")
+                group = await self.app.get_chat(self.group_id)
+                self.log.info(f"Acessando o grupo: {group.title}")
+
+                async for message in self.app.get_chat_history(group.id):
+                    try:
+                        # Check if message ID is within specified range
+                        if message.id < min_id:
+                            self.log.info(
+                                f"Atingido o ID mínimo {min_id}. Parando.")
+                            break
+
+                        if max_id and message.id > max_id:
+                            continue
+
+                        if message.photo or message.video:
+                            await self.process_media(message)
+
+                    except Exception as e:
+                        self.log.error(
+                            f"Erro ao processar a mensagem {message.id}: {e}")
+                        # Add small delay before continuing
+                        await asyncio.sleep(1)
+
+        except FloodWait as e:
+            wait_time = e.value
+            self.log.warning(
+                f"FloodWait detectado. Esperando {wait_time}s para continuar.")
+            await asyncio.sleep(wait_time)
+            # Try processing again after waiting
+            await self.download_historical_media(min_id, message.id-1)
+
+    async def list_groups(self) -> dict:
+        """
+        List all available groups/chats with their IDs.
+
+        Returns
+        -------
+            dict: Mapping of group names to their IDs
+        """
+        groups = {}
+        async with self.app:
+            async for dialog in self.app.get_dialogs():
+                if dialog.chat.title:
+                    groups[dialog.chat.title] = dialog.chat.id
+                    self.log.info(
+                        f"Nome: {dialog.chat.title} | ID: {dialog.chat.id}")
+
+        return groups
+
+    async def run(self, download_historical: bool = False, min_id: int = 0,
+                  max_id: Optional[int] = None) -> None:
+        """
+        Run the media downloader.
+
+        Args
+        ----
+            download_historical: Whether to download historical media
+            min_id: Minimum message ID for historical download
+            max_id: Maximum message ID for historical download
+        """
+        # Start the client
+        await self.app.start()
+        self.log.info("Cliente iniciado.")
+
+        try:
+            # Download historical media if requested
+            if download_historical:
+                self.log.info(
+                    f"Baixando (IDs {min_id} até {max_id or 'atual'})...")
+                await self.download_historical_media(min_id, max_id)
+                self.log.info("Download histórico concluído.")
+
+            # Keep the client running for new messages
+            self.log.info("Aguardando novas mensagens...")
+            # An alternative to idle() that's more explicit
+            await asyncio.Event().wait()
+
+        except KeyboardInterrupt:
+            self.log.info("Interrupção de teclado detectada. Encerrando...")
+
+        except Exception as e:
+            self.log.error(f"Erro durante a execução: {e}")
+
+        finally:
+            # Stop the client
+            await self.app.stop()
+            self.log.info("Cliente encerrado.")
 
 
-# Função para baixar mídias antigas
-@handle_flood_wait
-async def download_media_from_group(group_id):
-    async with app:
-        print("Conectado à conta do Telegram!")
-        group = await app.get_chat(group_id)
-        print(f"Acessando o grupo: {group.title}")
-
-        id_image = 38821
-
-        async for message in app.get_chat_history(group.id):
-            try:
-                if message.photo and message.id > id_image:
-                    # Obtém a data da mensagem
-                    message_date = message.date
-                    # Formata a data como "YYYY-MM-DD"
-                    date_folder = message_date.strftime("%Y-%m-%d")
-                    # Cria o diretório correspondente à data
-                    media_folder = os.path.join(download_folder, date_folder)
-                    if not os.path.exists(media_folder):
-                        os.makedirs(media_folder)
-
-                    # Define a extensão do arquivo com base no tipo de mídia
-                    if message.photo:
-                        file_extension = ".jpg"
-                    elif message.video:
-                        file_extension = ".mp4"
-                    elif message.document:
-                        file_extension = os.path.splitext(message.document
-                                                          .file_name)[1]
-                    else:
-                        # Extensão padrão para outros tipos de mídia
-                        file_extension = ".dat"
-
-                    # Define o nome do arquivo
-                    file_name = os.path.join(media_folder,
-                                             f"{message.id}{file_extension}")
-
-                    logger.info(f"Baixando mídia da mensagem {message.id}...")
-                    print(f"Baixando mídia da mensagem {message.id}...")
-                    await app.download_media(message, file_name=file_name)
-
-                    print_txt = f"Mídia {message.id} baixada com sucesso "
-                    print_txt += f"em {media_folder}!"
-                    logger.info(print_txt)
-                    print(print_txt)
-                elif message.id <= id_image:
-                    break
-                    print("Stop!")
-
-            except Exception as e:
-                logger.error(f"Erro ao processar a mensagem {message.id}: {e}")
-                print(f"Erro ao processar a mensagem {message.id}: {e}")
-                await asyncio.sleep(1)
-
-
-# Retorna os id dos chats
-async def list_groups():
-    group_id = ""
-    async with app:
-        async for dialog in app.get_dialogs():
-            print(f"Nome: {dialog.chat.title} | ID: {dialog.chat.id}")
-            if dialog.chat.title == group_username:
-                group_id = dialog.chat.id
-                break
-
-    return group_id
-
-# Cria a pasta de download, se não existir
-create_directory(download_folder)
-
-create_directory(os.path.join("..", "sessions"))
-
-# Inicializa o cliente
-app = Client("minha_conta", api_id=api_id, api_hash=api_hash,
-             phone_number=phone_number, workdir=os.path.join("..", "sessions"))
-
-# Pegar id dos grupoas
-group_id = int(env["TELEGRAM_GROUP_ID"])  # app.run(list_groups())  #
-
-
-# Executa o script de baixar mídias antigas
-# =============================================================================
-# app.run(download_media_from_group(group_id))
-# =============================================================================
-
-
-# Handler para novas mensagens
-# Filtra apenas mensagens do grupo especificado
-@app.on_message(filters.chat(group_id))
-async def handle_new_message(client, message):
-    logger.info(f"Nova mensagem recebida: {message.id}")
-    await process_media(message)
-
-
-# Função principal para iniciar o cliente
 async def main():
-    await app.start()
-    logger.info("Cliente iniciado. Aguardando novas mensagens...")
+    """Entry point for the script."""
+    # Create the downloader instance
+    downloader = TelegramMediaDownloader()
 
-    try:
-        await idle()  # Mantém o cliente em execução
-    except KeyboardInterrupt:
-        logger.info("Encerrando o cliente...")
-    finally:
-        await app.stop()
+    # Uncomment any of these lines as needed:
+
+    # To list available groups
+# =============================================================================
+#     groups = await downloader.list_groups()
+#     print("Grupos disponíveis:", groups)
+# =============================================================================
+
+    # To download historical media
+# =============================================================================
+#     await downloader.run(download_historical=True, min_id=61027,
+#                          max_id=61890)
+# =============================================================================
+
+    # To just listen for new media
+    await downloader.run()
 
 
-# Executa o script
 if __name__ == "__main__":
     asyncio.run(main())
