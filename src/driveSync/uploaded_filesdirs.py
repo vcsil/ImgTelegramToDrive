@@ -8,6 +8,7 @@ Created on Tue Apr 22 16:40:12 2025.
 from pathlib import Path
 import json
 import time
+import os
 
 
 class UploadedFilesDirs:
@@ -19,16 +20,27 @@ class UploadedFilesDirs:
 
         # Carrega o dicionário de arquivos enviados a partir do arquivo local
         if self.uploaded_files_dirs_path.exists():
-            with open(self.uploaded_files_dirs_path, 'r') as f:
-                self.uploads = json.load(f)
+            try:
+                with open(self.uploaded_files_dirs_path, 'r') as f:
+                    self.uploads = json.load(f)
+            except json.JSONDecodeError:
+                # Se o arquivo existir mas estiver vazio ou corrompido
+                self.uploads = {"uploaded_dirs": {}}
+                self.update_dict()  # Cria o arquivo com a estrutura padrão
         else:
-            self.uploads = {
-                    "uploaded_dirs": {}
-                }
+            # Cria a estrutura inicial e salva o arquivo
+            self.uploads = {"uploaded_dirs": {}}
+            self.update_dict()  # Cria o arquivo imediatamente
+
+            try:
+                os.chmod(self.uploaded_files_dirs_path, 0o666)
+            except Exception as e:
+                print("Aviso: Não foi possível definir permissões")
+                print(f"para {self.uploaded_files_dirs_path}: {e}")
 
     def add_dir(self, parent_id: str, folder_name: str, folder_id: str):
         """
-        Salva um diretório o que foi sincronizado.
+        Salva um diretório que foi sincronizado.
 
         Parameters
         ----------
