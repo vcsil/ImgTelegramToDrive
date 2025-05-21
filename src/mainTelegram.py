@@ -18,8 +18,13 @@ from pathlib import Path
 import nest_asyncio
 import asyncio
 
+from driveSync.uploaded_filesdirs import UploadedFilesDirs
+from driveSync.drive_client import DriveClient
+from driveSync.drive_auth import DriveAuth
 from utils.logger_setup import SetupLogger
 from organizeGroups import organize_midia
+from utils.utils import BUILD_ABSPATH
+from mainDrive import sync_upload
 
 # Apply patch to allow multiple event loops
 nest_asyncio.apply()
@@ -104,7 +109,10 @@ class TelegramMediaDownloader:
 
             # Process images and videos with organize_midia
             if message.photo or message.video:
-                organize_midia(str(file_path), date_folder, self.log)
+                new_file_path = organize_midia(str(file_path), message.date,
+                                               self.log)
+                sync_upload(new_file_path, self.log, drive_client, local_dir,
+                            obj_uploads,  envv["GDRIVE_BASE_FOLDER_ID"])
 
         except Exception as e:
             self.log.error(
@@ -228,6 +236,7 @@ class TelegramMediaDownloader:
         finally:
             # Stop the client
             await self.app.stop()
+            obj_uploads.update_dict()
             self.log.info("Cliente encerrado.")
 
 
@@ -255,4 +264,18 @@ async def main():
 
 
 if __name__ == "__main__":
+    # Inicia conexao e autenticacao com o drive
+    client_secrets_path = BUILD_ABSPATH(
+        __file__, "../credentials/service_account.json")
+    auth = DriveAuth(client_secrets_path).authenticate()
+
+    # Inicia cliente do drive
+    drive_client = DriveClient(auth)
+
+    # Lê arquivo que armazena informações do que já foi sincronizado
+    obj_uploads = UploadedFilesDirs(BUILD_ABSPATH(__file__, "../uploads.json"))
+
+    envv = dotenv_values()
+    local_dir = BUILD_ABSPATH(__file__, "..", envv["DESTINATION_DIR_IMAGE"])
+
     asyncio.run(main())

@@ -263,13 +263,14 @@ def _try_opencv_extraction(video_path: Path, log) -> Optional[np.ndarray]:
 def move_file(src: Path, midia_date, urls: list[str], log) -> None:
     """Move arquivo para outro diretório."""
     month = midia_date.strftime("%m-%Y")
-    domain = urls[0] if urls else "others" / midia_date.strftime("%Y-%m-%d")
+    domain = urls[0] if urls else Path("others") / midia_date.strftime("%Y-%m-%d")
     target = BUILD_ABSPATH("../..", env["DESTINATION_DIR_IMAGE"],
                            month, domain)
     target.mkdir(parents=True, exist_ok=True)
     shutil.move(src, target / src.name)
 
     log.info(f"Arquivo movido para: {target}")
+    return target / src.name
 
 
 def organize_midia(file_path: str, file_date: datetime, log) -> None:
@@ -289,7 +290,7 @@ def organize_midia(file_path: str, file_date: datetime, log) -> None:
 
     matches = process_image(image, log)
 
-    move_file(file_path, file_date, matches, log)
+    return move_file(file_path, file_date, matches, log)
 
 
 def main():

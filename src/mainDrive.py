@@ -16,7 +16,7 @@ from driveSync.drive_auth import DriveAuth
 from utils.logger_setup import SetupLogger
 
 
-def sync_upload(path: str, log, dclient,
+def sync_upload(path: str, log, dclient, local_path: Path,
                 dict_uploads: dict, folder_id: str) -> None:
     """
     Faz operações necessárias para sincronizar pastas e arquivos.
@@ -43,7 +43,7 @@ def sync_upload(path: str, log, dclient,
     log.info(f"Novo arquivo detectado: {path}")
 
     # Sincroniza o arquivo modificado
-    relative_path = Path(path).relative_to(local_dir)
+    relative_path = Path(path).relative_to(local_path)
 
     current_folder_id = folder_id
 
@@ -58,7 +58,7 @@ def sync_upload(path: str, log, dclient,
 
         # Faz o upload do arquivo
         metadata = dclient.upload_file(path, current_folder_id)
-        obj_uploads.update_last_upload(current_folder_id)
+        dict_uploads.update_last_upload(current_folder_id)
 
         file_size = int(metadata['fileSize']) / (1000 * 1000)
         log_txt = f"Arquivo {relative_path} ({file_size:.2f} MB) "
@@ -81,7 +81,7 @@ def get_or_create_folder(folder_name, parent_folder_id, log, dclient,
     """Verifica se a pasta já existe no Google Drive. Se não existir, cria."""
     log.info(f"Verifica se a pasta {folder_name} já existe.")
 
-    dirs = obj_uploads.uploads["uploaded_dirs"]
+    dirs = dict_uploads.uploads["uploaded_dirs"]
 
     # Verifica se o ID da pasta não foi salvo no arquivo de registros
     if parent_folder_id not in dirs:
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     files = file_root_recursive(local_dir)
 
     for file in tqdm(files):
-        sync_upload(file, logger, drive_client, obj_uploads,
+        sync_upload(file, logger, drive_client, local_dir, obj_uploads,
                     env["GDRIVE_BASE_FOLDER_ID"])
 
     try:
