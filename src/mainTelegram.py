@@ -148,30 +148,29 @@ class TelegramMediaDownloader:
             max_id: Maximum message ID to download (if None, no upper limit)
         """
         try:
-            async with self.app:
-                self.log.info("Conectado à conta do Telegram!")
-                group = await self.app.get_chat(self.group_id)
-                self.log.info(f"Acessando o grupo: {group.title}")
+            self.log.info("Conectado à conta do Telegram!")
+            group = await self.app.get_chat(self.group_id)
+            self.log.info(f"Acessando o grupo: {group.title}")
 
-                async for message in self.app.get_chat_history(group.id):
-                    try:
-                        # Check if message ID is within specified range
-                        if message.id < min_id:
-                            self.log.info(
-                                f"Atingido o ID mínimo {min_id}. Parando.")
-                            break
+            async for message in self.app.get_chat_history(group.id):
+                try:
+                    # Check if message ID is within specified range
+                    if message.id < min_id:
+                        self.log.info(
+                            f"Atingido o ID mínimo {min_id}. Parando.")
+                        break
 
-                        if max_id and message.id > max_id:
-                            continue
+                    if max_id and message.id > max_id:
+                        continue
 
-                        if message.photo or message.video:
-                            await self.process_media(message)
+                    if message.photo or message.video:
+                        await self.process_media(message)
 
-                    except Exception as e:
-                        self.log.error(
-                            f"Erro ao processar a mensagem {message.id}: {e}")
-                        # Add small delay before continuing
-                        await asyncio.sleep(1)
+                except Exception as e:
+                    self.log.error(
+                        f"Erro ao processar a mensagem {message.id}: {e}")
+                    # Add small delay before continuing
+                    await asyncio.sleep(1)
 
         except FloodWait as e:
             wait_time = e.value
