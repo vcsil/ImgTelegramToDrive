@@ -99,7 +99,7 @@ class TelegramMediaDownloader:
             file_extension = self._get_file_extension(message)
 
             # Formata o horário da mensagem e cria o novo nome do arquivo
-            message_time = message_date.strftime("%H-%M")
+            message_time = message_date.strftime("%Hh%M")
             new_file_name = f"{message_time} - {message.id}{file_extension}"
 
             # Define full file path
