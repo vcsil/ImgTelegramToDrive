@@ -98,8 +98,12 @@ class TelegramMediaDownloader:
             # Determine file extension based on media type
             file_extension = self._get_file_extension(message)
 
+            # Formata o horário da mensagem e cria o novo nome do arquivo
+            message_time = message_date.strftime("%H-%M")
+            new_file_name = f"{message_time} - {message.id}{file_extension}"
+
             # Define full file path
-            file_path = media_folder / f"{message.id}{file_extension}"
+            file_path = media_folder / new_file_name
 
             # Download the media
             self.log.info(f"Baixando mídia da mensagem {message.id}...")
