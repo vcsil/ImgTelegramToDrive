@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
     # Inicia conexao e autenticacao com o drive
     client_secrets_path = BUILD_ABSPATH(
-        __file__, "../credentials/service_account.json")
+        __file__, "../credentials/client_secrets.json")
     auth = DriveAuth(client_secrets_path).authenticate()
 
     # Inicia cliente do drive
